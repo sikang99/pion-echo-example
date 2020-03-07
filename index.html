@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>WebRTC-RTP Forwarder Sample - Video Sender</title>
+<title>WebRTC Echo Sample</title>
 <script>
 'use strict';
 let peer = null;
@@ -80,16 +80,18 @@ window.onload = () => {
 	});
 };
 </script>
+
 <style>
 body {
     text-align: center;
 }
-#video {
+video {
     width: 30%;
     height: auto;
 }    
 </style>
 </head>
+
 <body>
 <h2>Pion-based Echo Example</h2>
 <video id="local_video" autoplay></video>

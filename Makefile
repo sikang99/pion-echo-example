@@ -13,7 +13,7 @@ build b: *.go
 	go build -o $(PROG) *.go
 
 run r:
-	./$(PROG) -vcodec=h264 
+	./$(PROG) -vcodec=H264 
 
 clean c:
 	rm -f $(PROG)
