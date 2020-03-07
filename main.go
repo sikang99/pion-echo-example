@@ -155,15 +155,16 @@ func main() {
 			}
 		})
 
-		// localVideoTrack, err = peerConnection.NewTrack(webrtc.DefaultPayloadTypeVP8, rand.Uint32(), "video", "pion")
-		// if err != nil {
-		// 	log.Printf("peerConnection.NewTrack(VP8) failed. %v\n", err)
-		// 	return
-		// }
-
-		localVideoTrack, err = peerConnection.NewTrack(webrtc.DefaultPayloadTypeH264, rand.Uint32(), "video", "pion")
+		switch vcodec {
+		case "H264":
+			localVideoTrack, err = peerConnection.NewTrack(webrtc.DefaultPayloadTypeH264, rand.Uint32(), "video", "pion")
+		case "VP8":
+			localVideoTrack, err = peerConnection.NewTrack(webrtc.DefaultPayloadTypeVP8, rand.Uint32(), "video", "pion")
+		case "VP9":
+			localVideoTrack, err = peerConnection.NewTrack(webrtc.DefaultPayloadTypeVP9, rand.Uint32(), "video", "pion")
+		}
 		if err != nil {
-			log.Printf("peerConnection.NewTrack(H264) failed. %v\n", err)
+			log.Printf("peerConnection.NewTrack(%s) failed. %v\n", vcodec, err)
 			return
 		}
 
