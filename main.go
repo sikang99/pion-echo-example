@@ -1,10 +1,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -17,91 +19,10 @@ import (
 // https://github.com/pion/webrtc/blob/5f54b688995a424fbe5764a4e753a7deea62d04e/examples/play-from-disk/main.go
 
 const rtcpPLIInterval = time.Second * 3
-const indexHTML = `
-<html>
-<head>
-<title>WebRTC-RTP Forwarder Sample - Video Sender</title>
-<script>
-'use strict';
-let peer = null;
-let conn = null;
-let local_stream = null;
-function startConnect() {
-	conn = new WebSocket('ws://localhost:8080/ws');
-	conn.onmessage = (evt) => {
-		let d =JSON.parse(evt.data);
-		let type = d['type'];
-		let payload = d['payload'];
 
-		if (type === 'answer') {
-			peer.setRemoteDescription(new RTCSessionDescription({
-				type: 'answer',
-				sdp: payload,
-			})).then((o) => {
-				console.log(o);
-			}).catch((e) => {
-				console.err(e);
-			});
-		} else {
-			console.error('unexpected message', d);
-		}
-	};
-	conn.onopen = (evt) => {
-		let config = null;
-
-		peer = new RTCPeerConnection(config);
-		peer.ontrack = (evt) => {
-			console.log(evt);
-			remote_video.srcObject = evt.streams[0];
-		};
-		peer.onicecandidate = (evt) => {
-			console.log(evt);
-			if (!evt.candidate) {
-				return;
-			}
-			conn.send(JSON.stringify({
-				type: 'candidate',
-				payload: evt.candidate.candidate
-			}));
-		};
-		local_stream.getTracks().forEach(track => peer.addTrack(track, local_stream));
-		peer.createOffer().then((offer) => {
-			return peer.setLocalDescription(offer)
-		}).then(() => {
-			conn.send(JSON.stringify({
-				type: 'offer',
-				payload: peer.localDescription.sdp
-			}));
-		}).catch((e) => {
-			console.error(e);
-		});
-	};
-	conn.onclose = (evt) => {
-		console.log('Closed connection.');
-		conn = null;
-	};
+func init() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 }
-window.onload = () => {
-	navigator.mediaDevices.getUserMedia({
-		video: true,
-		audio: true,
-	}).then((stream) => {
-		local_video.srcObject = stream;
-		local_video.volume = 0;
-		local_stream = stream;
-		startConnect();
-	}).catch(err => {
-		console.log(JSON.stringify(err));
-	});
-};
-</script>
-</head>
-<body>
-	<video id="local_video" autoplay></video><br>
-	<video id="remote_video" autoplay controls></video>
-</body>
-</html>
-`
 
 type message struct {
 	Type    string `json:"type"`
@@ -112,20 +33,41 @@ func messageReceiver(conn *websocket.Conn, msgch chan message) {
 	m := message{}
 	for {
 		if err := websocket.ReadJSON(conn, &m); err != nil {
-			fmt.Fprintf(os.Stderr, "websocket.ReadJSON() returns ClosedError %v\n", err)
+			log.Printf("websocket.ReadJSON() returns ClosedError %v\n", err)
 			close(msgch)
 			return
 		} else {
-			fmt.Printf("websocket.ReadJSON() returns %v\n", m)
+			log.Printf("websocket.ReadJSON() returns %v\n", m)
 			msgch <- m
 		}
 	}
 }
 
 func main() {
+	vcodec := *flag.String("vcodec", "H264", "video codec type (H264/VP8/VP9)")
+	acodec := *flag.String("acodec", "OPUS", "audio codec type (OPUS)")
+	flag.Parse()
+
 	m := webrtc.MediaEngine{}
-	m.RegisterCodec(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, 90000))
-	m.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
+
+	//-- setting video and audio codec choosed
+	switch vcodec {
+	case "H264":
+		m.RegisterCodec(webrtc.NewRTPH264Codec(webrtc.DefaultPayloadTypeH264, 90000))
+	case "VP8":
+		m.RegisterCodec(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, 90000))
+	case "VP9":
+		m.RegisterCodec(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP9, 90000))
+	default:
+		log.Println("Not support video codec")
+	}
+
+	switch acodec {
+	case "OPUS":
+		m.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
+	default:
+		log.Println("Not support audio codec")
+	}
 
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(m))
 
@@ -136,12 +78,17 @@ func main() {
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, indexHTML)
+		data, err := ioutil.ReadFile("index.html")
+		if err != nil {
+			log.Println(err)
+		}
+		fmt.Fprintf(w, string(data))
 	})
+
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "upgrader.Upgrade() failed.\n")
+			log.Println("upgrader.Upgrade() failed.")
 			return
 		}
 		defer conn.Close()
@@ -157,7 +104,7 @@ func main() {
 			},
 		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "api.NewPeerConnection() failed. %v\n", err)
+			log.Printf("api.NewPeerConnection() failed. %v\n", err)
 			return
 		}
 
@@ -173,7 +120,7 @@ func main() {
 				for range ticker.C {
 					fmt.Printf("On rtcpPLIInterval.\n")
 					if rtcpSendErr := peerConnection.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: remoteTrack.SSRC()}}); rtcpSendErr != nil {
-						fmt.Println(rtcpSendErr)
+						log.Println(rtcpSendErr)
 						return
 					}
 				}
@@ -182,11 +129,12 @@ func main() {
 			for {
 				rtpPacket, err := remoteTrack.ReadRTP()
 				if err != nil {
+					log.Println("remoteTrack.ReadRTP:", err)
 					return
 				}
 
 				if localVideoTrack == nil {
-					fmt.Printf("remoteTrack.Read() continue.\n")
+					log.Printf("no localVideoTrack continue.\n")
 					continue
 				}
 
@@ -201,33 +149,39 @@ func main() {
 
 				err = localVideoTrack.WriteRTP(rtpPacket)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "localVideoTrack.Write() failed. %v\n", err)
+					log.Printf("localVideoTrack.Write() failed. %v\n", err)
 					return
 				}
 			}
 		})
 
-		localVideoTrack, err = peerConnection.NewTrack(webrtc.DefaultPayloadTypeVP8, rand.Uint32(), "video", "pion")
+		// localVideoTrack, err = peerConnection.NewTrack(webrtc.DefaultPayloadTypeVP8, rand.Uint32(), "video", "pion")
+		// if err != nil {
+		// 	log.Printf("peerConnection.NewTrack(VP8) failed. %v\n", err)
+		// 	return
+		// }
+
+		localVideoTrack, err = peerConnection.NewTrack(webrtc.DefaultPayloadTypeH264, rand.Uint32(), "video", "pion")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "peerConnection.NewTrack(VP8) failed. %v\n", err)
+			log.Printf("peerConnection.NewTrack(H264) failed. %v\n", err)
 			return
 		}
 
 		_, err = peerConnection.AddTrack(localVideoTrack)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "peerConnection.AddTrack(Video) failed. %v\n", err)
+			log.Printf("peerConnection.AddTrack(Video) failed. %v\n", err)
 			return
 		}
 
 		localAudioTrack, err = peerConnection.NewTrack(webrtc.DefaultPayloadTypeOpus, rand.Uint32(), "audio", "pion")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "peerConnection.NewTrack(OPUS) failed. %v\n", err)
+			log.Printf("peerConnection.NewTrack(OPUS) failed. %v\n", err)
 			return
 		}
 
 		_, err = peerConnection.AddTrack(localAudioTrack)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "peerConnection.AddTrack(Audio) failed. %v\n", err)
+			log.Printf("peerConnection.AddTrack(Audio) failed. %v\n", err)
 			return
 		}
 
@@ -244,19 +198,19 @@ func main() {
 							}
 							err = peerConnection.SetRemoteDescription(desc)
 							if err != nil {
-								fmt.Fprintf(os.Stderr, "peerConnection.SetRemoteDescription() failed. %v\n", err)
+								log.Printf("peerConnection.SetRemoteDescription() failed. %v\n", err)
 								goto close
 							}
 
 							answer, err := peerConnection.CreateAnswer(nil)
 							if err != nil {
-								fmt.Fprintf(os.Stderr, "peerConnection.CreateAnswer() failed. %v\n", err)
+								log.Printf("peerConnection.CreateAnswer() failed. %v\n", err)
 								goto close
 							}
 
 							err = peerConnection.SetLocalDescription(answer)
 							if err != nil {
-								fmt.Fprintf(os.Stderr, "peerConnection.CreateAnswer() failed. %v\n", err)
+								log.Printf("peerConnection.CreateAnswer() failed. %v\n", err)
 								goto close
 							}
 
@@ -272,18 +226,21 @@ func main() {
 							}
 							err := peerConnection.AddICECandidate(candidate)
 							if err != nil {
-								fmt.Fprintf(os.Stderr, "peerConnection.AddICECandidate() failed. %v\n", err)
+								log.Printf("peerConnection.AddICECandidate() failed. %v\n", err)
 							}
 						}
 					}
 				} else {
+					log.Println("channel recv error")
 					goto close
 				}
 			}
 		}
 	close:
 	})
+
+	fmt.Println("connect to http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		fmt.Fprintf(os.Stderr, "httpListenAndServe() failed: %v\n", err)
+		log.Printf("httpListenAndServe() failed: %v\n", err)
 	}
 }

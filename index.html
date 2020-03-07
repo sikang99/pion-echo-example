@@ -1,0 +1,98 @@
+<html>
+<head>
+<title>WebRTC-RTP Forwarder Sample - Video Sender</title>
+<script>
+'use strict';
+let peer = null;
+let conn = null;
+let local_stream = null;
+
+function startConnect() {
+	conn = new WebSocket('ws://localhost:8080/ws');
+
+	conn.onmessage = (evt) => {
+		let d =JSON.parse(evt.data);
+		let type = d['type'];
+		let payload = d['payload'];
+
+		if (type === 'answer') {
+			peer.setRemoteDescription(new RTCSessionDescription({
+				type: 'answer',
+				sdp: payload,
+			})).then((o) => {
+				console.log(o);
+			}).catch((e) => {
+				console.err(e);
+			});
+		} else {
+			console.error('unexpected message', d);
+		}
+	};
+
+	conn.onopen = (evt) => {
+		let config = null;
+
+		peer = new RTCPeerConnection(config);
+		peer.ontrack = (evt) => {
+			console.log(evt);
+			remote_video.srcObject = evt.streams[0];
+		};
+		peer.onicecandidate = (evt) => {
+			console.log(evt);
+			if (!evt.candidate) {
+				return;
+			}
+			conn.send(JSON.stringify({
+				type: 'candidate',
+				payload: evt.candidate.candidate
+			}));
+		};
+		local_stream.getTracks().forEach(track => peer.addTrack(track, local_stream));
+		peer.createOffer().then((offer) => {
+			return peer.setLocalDescription(offer)
+		}).then(() => {
+			conn.send(JSON.stringify({
+				type: 'offer',
+				payload: peer.localDescription.sdp
+			}));
+		}).catch((e) => {
+			console.error(e);
+		});
+	};
+
+	conn.onclose = (evt) => {
+		console.log('Closed connection.');
+		conn = null;
+	};
+}
+
+window.onload = () => {
+	navigator.mediaDevices.getUserMedia({
+		video: true,
+		audio: true,
+	}).then((stream) => {
+		local_video.srcObject = stream;
+		local_video.volume = 0;
+		local_stream = stream;
+		startConnect();
+	}).catch(err => {
+		console.log(JSON.stringify(err));
+	});
+};
+</script>
+<style>
+body {
+    text-align: center;
+}
+.video {
+    width: 30%;
+    height: auto;
+}    
+</style>
+</head>
+<body>
+<h2>Pion-based Echo Example</h2>
+	<video id="local_video" autoplay></video>
+	<video id="remote_video" autoplay controls></video>
+</body>
+</html>

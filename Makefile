@@ -14,6 +14,12 @@ build b:
 
 run r:
 	./$(PROG)
+
+clean c:
+	rm -f $(PROG)
+
+open o:
+	open http://localhost:8080/
 #----------------------------------------------------------------------------------
 git g:
 	@echo "> make (git:g) [update|store]"
