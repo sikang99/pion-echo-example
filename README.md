@@ -18,3 +18,4 @@
     - add command flags to choose audio and video codecs
     - add on more stun server in iceServers with `stun:stun.stunprotocol.org:3478`
 - 2020/03/07 : fork from [nus/pion-echo](https://github.com/nus/pion-echo)
+    - find the sample source via `hub-search --lang=go "pion webrtc"`
