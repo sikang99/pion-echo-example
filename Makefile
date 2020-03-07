@@ -23,6 +23,9 @@ clean c:
 
 open o:
 	open http://localhost:8080/
+
+search s:
+	hub-search --lang=go "pion webrtc"
 #----------------------------------------------------------------------------------
 git g:
 	@echo "> make (git:g) [update|store]"
