@@ -103,7 +103,7 @@ func main() {
 		peerConnection, err := api.NewPeerConnection(webrtc.Configuration{
 			ICEServers: []webrtc.ICEServer{
 				{
-					URLs: []string{"stun:stun.l.google.com:19302"},
+					URLs: []string{"stun:stun.l.google.com:19302", "stun:stun.stunprotocol.org:3478"},
 				},
 			},
 		})
@@ -168,7 +168,7 @@ func main() {
 			localVideoTrack, err = peerConnection.NewTrack(webrtc.DefaultPayloadTypeVP9, rand.Uint32(), "video", "pion")
 		}
 		if err != nil {
-			log.Printf("peerConnection.NewTrack(%s) failed. %v\n", vcodec, err)
+			log.Printf("peerConnection.NewTrack(%s) failed. %v\n", *vcodec, err)
 			return
 		}
 
