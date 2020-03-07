@@ -9,11 +9,11 @@ usage:
 edit e:
 	vi main.go
 
-build b:
+build b: *.go
 	go build -o $(PROG) *.go
 
 run r:
-	./$(PROG)
+	./$(PROG) -vcodec=h264 
 
 clean c:
 	rm -f $(PROG)

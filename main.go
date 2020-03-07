@@ -44,29 +44,33 @@ func messageReceiver(conn *websocket.Conn, msgch chan message) {
 }
 
 func main() {
-	vcodec := *flag.String("vcodec", "H264", "video codec type (H264/VP8/VP9)")
-	acodec := *flag.String("acodec", "OPUS", "audio codec type (OPUS)")
+	vcodec := flag.String("vcodec", "H264", "video codec type (H264/VP8/VP9)")
+	acodec := flag.String("acodec", "OPUS", "audio codec type (OPUS)")
 	flag.Parse()
+
+	log.Println(*vcodec, *acodec)
 
 	m := webrtc.MediaEngine{}
 
 	//-- setting video and audio codec choosed
-	switch vcodec {
+	switch *vcodec {
 	case "H264":
 		m.RegisterCodec(webrtc.NewRTPH264Codec(webrtc.DefaultPayloadTypeH264, 90000))
 	case "VP8":
 		m.RegisterCodec(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP8, 90000))
 	case "VP9":
-		m.RegisterCodec(webrtc.NewRTPVP8Codec(webrtc.DefaultPayloadTypeVP9, 90000))
+		m.RegisterCodec(webrtc.NewRTPVP9Codec(webrtc.DefaultPayloadTypeVP9, 90000))
 	default:
-		log.Println("Not support video codec")
+		log.Println("Not support video codec", *vcodec)
+		return
 	}
 
-	switch acodec {
+	switch *acodec {
 	case "OPUS":
 		m.RegisterCodec(webrtc.NewRTPOpusCodec(webrtc.DefaultPayloadTypeOpus, 48000))
 	default:
-		log.Println("Not support audio codec")
+		log.Println("Not support audio codec", *acodec)
+		return
 	}
 
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(m))
@@ -155,7 +159,7 @@ func main() {
 			}
 		})
 
-		switch vcodec {
+		switch *vcodec {
 		case "H264":
 			localVideoTrack, err = peerConnection.NewTrack(webrtc.DefaultPayloadTypeH264, rand.Uint32(), "video", "pion")
 		case "VP8":
@@ -240,7 +244,7 @@ func main() {
 	close:
 	})
 
-	fmt.Println("connect to http://localhost:8080")
+	fmt.Println("Please connect to http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Printf("httpListenAndServe() failed: %v\n", err)
 	}
