@@ -46,9 +46,8 @@ func messageReceiver(conn *websocket.Conn, msgch chan message) {
 func main() {
 	vcodec := flag.String("vcodec", "H264", "video codec type (H264/VP8/VP9)")
 	acodec := flag.String("acodec", "OPUS", "audio codec type (OPUS)")
-	flag.Parse()
-
 	log.Println(*vcodec, *acodec)
+	flag.Parse()
 
 	m := webrtc.MediaEngine{}
 

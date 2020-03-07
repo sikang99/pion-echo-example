@@ -94,16 +94,22 @@ window.onload = () => {
 body {
     text-align: center;
 }
-#video {
-    width: 30%;
+video {
+    width: 20%;
     height: auto;
 }    
+textarea {
+	width: 60%
+}
 </style>
 </head>
 
 <body>
 <h2>Pion-based Echo Example</h2>
+<div>
 <video id="local_video" autoplay></video>
 <video id="remote_video" autoplay controls></video>
+</div>
+<textarea id="result"></textarea>
 </body>
 </html>
