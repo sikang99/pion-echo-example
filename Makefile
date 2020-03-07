@@ -15,6 +15,9 @@ build b: *.go
 run r:
 	./$(PROG) -vcodec=VP9 
 
+kill k:
+	pkill $(PROG)
+
 clean c:
 	rm -f $(PROG)
 
