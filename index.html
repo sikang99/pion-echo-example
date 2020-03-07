@@ -30,13 +30,20 @@ function startConnect() {
 	};
 
 	conn.onopen = (evt) => {
-		let config = null;
+		let config = {
+			iceServers: [
+				{urls: "stun:stun.l.google.com:19302"},
+				{urls: "stun:stun.stunprotocol.org:3478"}
+			]
+		}
 
 		peer = new RTCPeerConnection(config);
+		
 		peer.ontrack = (evt) => {
 			console.log(evt);
 			remote_video.srcObject = evt.streams[0];
 		};
+		
 		peer.onicecandidate = (evt) => {
 			console.log(evt);
 			if (!evt.candidate) {
@@ -47,7 +54,9 @@ function startConnect() {
 				payload: evt.candidate.candidate
 			}));
 		};
+		
 		local_stream.getTracks().forEach(track => peer.addTrack(track, local_stream));
+		
 		peer.createOffer().then((offer) => {
 			return peer.setLocalDescription(offer)
 		}).then(() => {
@@ -85,7 +94,7 @@ window.onload = () => {
 body {
     text-align: center;
 }
-video {
+#video {
     width: 30%;
     height: auto;
 }    
