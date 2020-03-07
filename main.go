@@ -15,8 +15,8 @@ import (
 )
 
 // Reference
-// https://github.com/pion/webrtc/blob/5f54b688995a424fbe5764a4e753a7deea62d04e/examples/broadcast/main.go
-// https://github.com/pion/webrtc/blob/5f54b688995a424fbe5764a4e753a7deea62d04e/examples/play-from-disk/main.go
+// https://github.com/pion/webrtc/tree/master/examples/broadcast/main.go
+// https://github.com/pion/webrtc/tree/master/examples/play-from-disk/main.go
 
 const rtcpPLIInterval = time.Second * 3
 
@@ -46,7 +46,7 @@ func messageReceiver(conn *websocket.Conn, msgch chan message) {
 func main() {
 	vcodec := flag.String("vcodec", "H264", "video codec type (H264/VP8/VP9)")
 	acodec := flag.String("acodec", "OPUS", "audio codec type (OPUS)")
-	log.Println(*vcodec, *acodec)
+	log.Println("codecs:", *vcodec, *acodec)
 	flag.Parse()
 
 	m := webrtc.MediaEngine{}
